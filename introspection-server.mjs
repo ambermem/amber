@@ -139,11 +139,13 @@ server.tool(
 
 server.tool(
   "amber_restore_memory",
-  "Restore one or more previously soft-deleted memories back from the trash. They become searchable again and return to `amber_list_memories`. " +
-    "Idempotent: restoring an already-active memory is a no-op.\n\n" +
-    "Pass `memory_id` for a single memory, or `memory_ids` for a batch (max 100). Must provide at least one. " +
-    "Returns `restored_count` with the number of memories actually restored (excludes already-active ones). " +
-    "Returns `code: not_found` if none of the given IDs matched deleted memories.",
+  "Un-delete memories from the trash, making them searchable and visible in `amber_list_memories` again. " +
+    "Use after `amber_search_deleted_memories` or `amber_list_deleted_memories` to recover accidentally deleted content. " +
+    "Do NOT use for new content — use `amber_store_memory` instead.\n\n" +
+    "Provide `memory_id` (single) or `memory_ids` (batch, max 100). At least one is required. " +
+    "Idempotent: already-active memories are skipped. Side effects: moves memories from trash to active. " +
+    "Returns `restored_count`. Returns `code: not_found` if no IDs matched deleted memories. " +
+    "Requires an active subscription. Not rate-limited.",
   {
     memory_id: z.string().min(1).optional().describe(
       "UUID of a single memory to restore. Omit if using `memory_ids` for batch.",
@@ -246,7 +248,7 @@ server.tool(
     "Cancellation is sent to PayPal immediately; status update arrives via webhook within ~1 minute. " +
     "Returns `code: no_subscription` if none exists. Requires `confirm: true`.",
   {
-    confirm: z.boolean().describe("Set `true` to cancel, `false` to preview without cancelling."),
+    confirm: z.boolean().describe("When `true`: cancels the subscription on PayPal and updates account status. When `false`: returns `code: cancelled` with no side effects, letting you confirm intent first."),
   },
   noop,
 );
@@ -310,14 +312,14 @@ server.tool(
     "Never include passwords, API keys, or other sensitive personal information in any field. Rate-limited (bucket: 12 capacity, refills 1 per 5 minutes).",
   {
     category: z.enum(["bug", "feature_request", "usability", "general"]).describe(
-      "'bug' = broken behavior, 'feature_request' = new capability, 'usability' = confusing UX, 'general' = other.",
+      "Determines how the developer triages this. 'bug': something broke or returned wrong results. 'feature_request': a capability that doesn't exist yet. 'usability': works but is confusing or awkward. 'general': anything else.",
     ),
-    summary: z.string().min(1).describe("Brief one-line summary, under 100 characters."),
+    summary: z.string().min(1).describe("One sentence, under 100 chars. E.g. 'Search misses memories stored with emoji in content'."),
     details: z.string().min(1).describe(
-      "What was tried, what happened vs expected, error messages, and reproduction steps.",
+      "Full reproduction context. Include: exact input used, expected outcome, actual outcome, any error codes. E.g. 'Stored \"I love pizza 🍕\" but searching \"pizza emoji\" returns nothing. Expected it to match.'",
     ),
     tool_context: z.string().optional().describe(
-      "Which amber_ tool was in use when the issue occurred, e.g. 'amber_search_memories'.",
+      "The specific amber_ tool name involved, e.g. 'amber_search_memories'. Helps route the report.",
     ),
   },
   noop,
@@ -327,10 +329,11 @@ server.tool(
   "amber_mark_notification_read",
   "Dismiss a developer notification after the user has acknowledged it. " +
     "Permanently removes it from the `developer_notifications` block that appears in every tool response.\n\n" +
-    "Only call after the user has seen the notification. Returns `code: not_found` if already dismissed or invalid. Not rate-limited.",
+    "Side effects: deletes the notification row from the user's database. Idempotent in intent but returns `code: not_found` if already dismissed. " +
+    "Only call after the user has seen the notification content. Not rate-limited.",
   {
     notification_id: z.number().int().describe(
-      "The `id` field from a notification object in the `developer_notifications` array. Each notification has a unique positive integer ID.",
+      "Positive integer from the `id` field of a notification in `developer_notifications`. Example: if the block contains `{id: 42, message: \"...\"}`, pass 42. Each ID is unique and single-use.",
     ),
   },
   noop,
