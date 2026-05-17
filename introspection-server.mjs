@@ -112,7 +112,7 @@ server.tool(
     "Read-only — does not modify the memory. Not rate-limited. Requires an active subscription.",
   {
     memory_id: z.string().min(1).describe(
-      "UUID of the memory to retrieve. Use this to fetch full content after seeing a truncated search result, or to revisit a known memory. Invalid or trashed IDs return `code: not_found`.",
+      "UUID of the target memory. Found in `amber_store_memory` task results, `amber_search_memories` result items, or `amber_list_memories` pages.",
     ),
   },
   noop,
@@ -120,17 +120,18 @@ server.tool(
 
 server.tool(
   "amber_delete_memory",
-  "Soft-delete one or more memories: moves them to the trash. Excluded from `amber_search_memories` / `amber_list_memories`, but retrievable via `amber_search_deleted_memories` / `amber_list_deleted_memories` / `amber_restore_memory`. " +
-    "Use this for user-initiated removals. Idempotent: deleting an already-deleted memory is a no-op.\n\n" +
-    "Pass `memory_id` for a single memory, or `memory_ids` for a batch (max 100). Must provide at least one. " +
-    "Returns `deleted_count` with the number of memories actually moved to trash (excludes already-deleted ones). " +
-    "Returns `code: not_found` if none of the given IDs matched active memories.",
+  "Soft-delete one or more memories to the trash. Reversible via `amber_restore_memory`. " +
+    "Do NOT use for account-level cleanup — use `amber_delete_account` instead.\n\n" +
+    "Provide `memory_id` (single) or `memory_ids` (batch, max 100). At least one is required. " +
+    "Idempotent: already-deleted memories are skipped. " +
+    "Returns `deleted_count`. Returns `code: not_found` if no IDs matched active memories. " +
+    "Requires an active subscription. Not rate-limited.",
   {
     memory_id: z.string().min(1).optional().describe(
-      "A single memory ID (UUID) to move to trash. Use this for individual deletions. Mutually optional with memory_ids — provide at least one.",
+      "UUID of a single memory to trash. Omit if using `memory_ids` for batch.",
     ),
     memory_ids: z.array(z.string().min(1)).min(1).max(100).optional().describe(
-      "Array of memory IDs (UUIDs) to move to trash in a single batch (max 100). Use this for bulk deletions. Mutually optional with memory_id — provide at least one.",
+      "Array of memory UUIDs to trash in one call (max 100). Omit if using `memory_id` for single.",
     ),
   },
   noop,
@@ -145,10 +146,10 @@ server.tool(
     "Returns `code: not_found` if none of the given IDs matched deleted memories.",
   {
     memory_id: z.string().min(1).optional().describe(
-      "A single memory ID (UUID) to restore from trash. Use this for individual restores. Mutually optional with memory_ids — provide at least one.",
+      "UUID of a single memory to restore. Omit if using `memory_ids` for batch.",
     ),
     memory_ids: z.array(z.string().min(1)).min(1).max(100).optional().describe(
-      "Array of memory IDs (UUIDs) to restore from trash in a single batch (max 100). Use this for bulk restores. Mutually optional with memory_id — provide at least one.",
+      "Array of memory UUIDs to restore in one call (max 100). Omit if using `memory_id` for single.",
     ),
   },
   noop,
@@ -240,28 +241,23 @@ server.tool(
 
 server.tool(
   "amber_cancel_subscription",
-  "Cancel the authenticated user's PayPal subscription. Full access continues until the current billing period ends (`next_billing_date`) — the user already paid for that period. " +
-    "After that date, memory tools become unavailable until resubscribed (data is preserved, not deleted). " +
-    "The cancellation is sent to PayPal immediately, but the account status update may take up to a minute to reflect (it arrives via webhook). " +
-    "Requires `confirm: true` to proceed. Returns `code: cancelled` when `confirm` is false, " +
-    "`code: no_subscription` if no subscription exists, `code: not_configured` if PayPal credentials are missing.",
+  "Cancel the user's PayPal subscription. Access continues until `next_billing_date` (already paid). Data is preserved, not deleted. " +
+    "Do NOT use if the user wants to delete their account entirely — use `amber_delete_account` instead.\n\n" +
+    "Cancellation is sent to PayPal immediately; status update arrives via webhook within ~1 minute. " +
+    "Returns `code: no_subscription` if none exists. Requires `confirm: true`.",
   {
-    confirm: z.boolean().describe("Set `true` to proceed, `false` to abort without changes."),
+    confirm: z.boolean().describe("Set `true` to cancel, `false` to preview without cancelling."),
   },
   noop,
 );
 
 server.tool(
   "amber_reactivate_subscription",
-  "Start or restart a PayPal subscription for the user. Returns an approval URL that you MUST present to the user to open in their browser — the subscription is not active until they approve it on PayPal.\n\n" +
-    "When to use: the user has no subscription, their trial expired, they previously cancelled, or they ask to resubscribe.\n\n" +
-    "Pricing: first-time subscribers get a 60-day free trial, then $2.99/month. Resubscribers keep any remaining free days from their previous billing cycle; if the billing date has passed, billing starts immediately at $2.99/month.\n\n" +
-    "IMPORTANT: When presenting the approval URL, warn the user that they MUST log in with the SAME PayPal account they originally signed up with. " +
-    "If they use a different PayPal account, the subscription will be automatically rejected and they will need to try again.\n\n" +
-    "Side effects: creates a new PayPal subscription (pending approval). No charge occurs until the user approves. " +
-    "Returns `code: already_active` if the subscription is already active (also syncs status from PayPal). " +
-    "Returns `code: not_configured` if PayPal credentials are missing. " +
-    "Returns `code: deletion_scheduled` if the account is scheduled for deletion — user must cancel deletion first.",
+  "Create a PayPal subscription and return an approval URL. The user MUST open this URL in their browser to activate. " +
+    "Do NOT use if the user just wants to manage an existing subscription — use `amber_manage_subscription` instead.\n\n" +
+    "First-time: 60-day free trial, then $2.99/month. Returning: preserves remaining free days, or bills immediately if expired. " +
+    "Warn the user to log in with the SAME PayPal account they originally signed up with.\n\n" +
+    "No charge until the user approves. Returns `code: already_active` if active, `code: deletion_scheduled` if deletion is pending.",
   {},
   noop,
 );
@@ -329,15 +325,12 @@ server.tool(
 
 server.tool(
   "amber_mark_notification_read",
-  "Mark a developer notification as read after the user has seen and acknowledged it. " +
-    "Notifications are delivered automatically via the `developer_notifications` section appended to every tool response when unread notifications exist.\n\n" +
-    "Call this ONLY after relaying the notification content to the user and receiving their acknowledgement. " +
-    "This permanently deletes the notification — it will not appear in subsequent tool responses. " +
-    "Returns `code: not_found` if the notification_id doesn't exist (already read or invalid). " +
-    "Not rate-limited.",
+  "Dismiss a developer notification after the user has acknowledged it. " +
+    "Permanently removes it from the `developer_notifications` block that appears in every tool response.\n\n" +
+    "Only call after the user has seen the notification. Returns `code: not_found` if already dismissed or invalid. Not rate-limited.",
   {
     notification_id: z.number().int().describe(
-      "Numeric ID from the `developer_notifications` block in any tool response. Marks that specific notification as read and stops it from appearing. Invalid IDs return `code: not_found`.",
+      "The `id` field from a notification object in the `developer_notifications` array. Each notification has a unique positive integer ID.",
     ),
   },
   noop,
