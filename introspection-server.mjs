@@ -70,7 +70,7 @@ server.tool(
     "Returns `code: not_found` if the task_id doesn't exist or has expired (tasks are pruned after 7 days).",
   {
     task_id: z.string().min(1).describe(
-      "The task_id (UUID) returned by `amber_store_memory` in its response. Each store call produces a unique task_id.",
+      "UUID from `amber_store_memory`'s response. Poll this to know when memories are ready to search. Invalid IDs return `code: not_found`.",
     ),
   },
   noop,
@@ -112,7 +112,7 @@ server.tool(
     "Read-only — does not modify the memory. Not rate-limited. Requires an active subscription.",
   {
     memory_id: z.string().min(1).describe(
-      "The unique memory ID (UUID format). Obtained from `amber_store_memory` results, `amber_search_memories` results, or `amber_list_memories` output.",
+      "UUID of the memory to retrieve. Use this to fetch full content after seeing a truncated search result, or to revisit a known memory. Invalid or trashed IDs return `code: not_found`.",
     ),
   },
   noop,
@@ -246,7 +246,7 @@ server.tool(
     "Requires `confirm: true` to proceed. Returns `code: cancelled` when `confirm` is false, " +
     "`code: no_subscription` if no subscription exists, `code: not_configured` if PayPal credentials are missing.",
   {
-    confirm: z.boolean().describe("Safety gate: must be `true` to proceed. When `false`, the tool returns `code: cancelled` without making any changes — use this to confirm the user's intent before committing."),
+    confirm: z.boolean().describe("Set `true` to proceed, `false` to abort without changes."),
   },
   noop,
 );
@@ -284,26 +284,23 @@ server.tool(
 
 server.tool(
   "amber_delete_account",
-  "Schedule the authenticated user's account for permanent deletion in 30 days. " +
-    "Unlike cancellation (which keeps access until period end), deletion blocks memory tools immediately while scheduled. " +
-    "If cancelled via `amber_cancel_account_deletion`, full access resumes until `next_billing_date`. " +
-    "The PayPal subscription is cancelled to stop future billing. " +
-    "During the 30-day grace period, only account management tools remain accessible (status, cancel deletion, export, feedback). " +
-    "All memory and topic tools are blocked. After 30 days, the account and all data are permanently deleted. " +
-    "Use `amber_cancel_account_deletion` to cancel a scheduled deletion and restore full access. " +
-    "Requires `confirm: true` to proceed. Returns `code: cancelled` when `confirm` is false, " +
-    "`code: already_scheduled` if deletion is already pending.",
+  "Schedule permanent account deletion in 30 days. Memory tools are blocked immediately (unlike cancellation, which keeps access until period end). " +
+    "Cancels the PayPal subscription. Reversible within 30 days via `amber_cancel_account_deletion`.\n\n" +
+    "During the grace period: account management tools (status, export, feedback) remain accessible; memory tools are blocked. " +
+    "After 30 days: all data is permanently deleted.\n\n" +
+    "Requires `confirm: true`. Returns `code: cancelled` when false, `code: already_scheduled` if already pending.",
   {
-    confirm: z.boolean().describe("Safety gate: must be `true` to proceed. When `false`, the tool returns `code: cancelled` without making any changes — use this to confirm the user's intent before scheduling deletion."),
+    confirm: z.boolean().describe("Set `true` to proceed, `false` to abort without changes."),
   },
   noop,
 );
 
 server.tool(
   "amber_cancel_account_deletion",
-  "Cancel a previously scheduled account deletion. Access resumes until `next_billing_date` (the remaining paid period). " +
-    "Note: the PayPal subscription was cancelled when deletion was scheduled. Use `amber_reactivate_subscription` to start a new subscription if the paid period has already expired. " +
-    "Returns `code: not_scheduled` if no deletion is pending.",
+  "Cancel a previously scheduled account deletion. Removes the deletion deadline and unblocks memory tools immediately. " +
+    "Access resumes until `next_billing_date` (the remaining paid period). No data is lost.\n\n" +
+    "Side effects: clears `deletion_scheduled_at` from the account. The PayPal subscription was already cancelled when deletion was scheduled — call `amber_reactivate_subscription` to start a new one if the paid period has expired. " +
+    "Returns `code: not_scheduled` if no deletion is pending. Not rate-limited.",
   {},
   noop,
 );
@@ -317,17 +314,14 @@ server.tool(
     "Never include passwords, API keys, or other sensitive personal information in any field. Rate-limited (bucket: 12 capacity, refills 1 per 5 minutes).",
   {
     category: z.enum(["bug", "feature_request", "usability", "general"]).describe(
-      "Type of feedback: 'bug' for something broken, 'feature_request' for new functionality, 'usability' for UX friction, 'general' for anything else.",
+      "'bug' = broken behavior, 'feature_request' = new capability, 'usability' = confusing UX, 'general' = other.",
     ),
-    summary: z.string().min(1).describe(
-      "One-line summary (under ~100 characters). Example: 'Search returns no results for exact keyword matches'.",
-    ),
+    summary: z.string().min(1).describe("Brief one-line summary, under 100 characters."),
     details: z.string().min(1).describe(
-      "Full context including: what the user tried, what happened vs what was expected, any error messages or codes, " +
-        "steps to reproduce, and suggestions if the user offered any. Be specific and include tool names, query text, or memory IDs when relevant.",
+      "What was tried, what happened vs expected, error messages, and reproduction steps.",
     ),
     tool_context: z.string().optional().describe(
-      "The amber_ tool name that was being used when the issue occurred (e.g. 'amber_search_memories'). Helps the developer pinpoint the problem.",
+      "Which amber_ tool was in use when the issue occurred, e.g. 'amber_search_memories'.",
     ),
   },
   noop,
@@ -343,8 +337,7 @@ server.tool(
     "Not rate-limited.",
   {
     notification_id: z.number().int().describe(
-      "The numeric ID from the `developer_notifications` section that appears in every tool response when notifications are pending. " +
-        "Each notification has a unique ID. Only mark as read after the user has seen and acknowledged the notification content.",
+      "Numeric ID from the `developer_notifications` block in any tool response. Marks that specific notification as read and stops it from appearing. Invalid IDs return `code: not_found`.",
     ),
   },
   noop,
