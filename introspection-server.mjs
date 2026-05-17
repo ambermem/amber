@@ -67,7 +67,9 @@ server.tool(
     "If processing fails (e.g. LLM timeout), it retries up to 3 times. No duplicates are created on retry. " +
     "Only after all retries are exhausted does the status become `error` with the failure reason.",
   {
-    task_id: z.string().min(1).describe("The task_id returned by amber_store_memory."),
+    task_id: z.string().min(1).describe(
+      "The task_id (UUID) returned by `amber_store_memory` in its response. Each store call produces a unique task_id.",
+    ),
   },
   noop,
 );
@@ -100,10 +102,16 @@ server.tool(
 
 server.tool(
   "amber_get_memory",
-  "Retrieve a single memory by its ID. Returns an error with `code: not_found` if the memory doesn't exist or has been hard-deleted. " +
-    "Soft-deleted memories remain retrievable via `amber_search_deleted_memories` or `amber_list_deleted_memories`.",
+  "Retrieve a single memory by its ID with full content (no truncation). " +
+    "Use this after `amber_search_memories` when a result's content was truncated (indicated by `truncated: true`), or when you have a memory_id from a previous interaction.\n\n" +
+    "Returns the memory with its content, metadata, topics, and timestamps. " +
+    "Returns `code: not_found` if the memory doesn't exist, was hard-deleted, or is in the trash. " +
+    "Soft-deleted memories are only accessible via `amber_search_deleted_memories` or `amber_list_deleted_memories`. " +
+    "Read-only — does not modify the memory.",
   {
-    memory_id: z.string().min(1).describe("The memory ID, as returned by `amber_store_memory` or included in search results."),
+    memory_id: z.string().min(1).describe(
+      "The unique memory ID (UUID format). Obtained from `amber_store_memory` results, `amber_search_memories` results, or `amber_list_memories` output.",
+    ),
   },
   noop,
 );
@@ -112,10 +120,16 @@ server.tool(
   "amber_delete_memory",
   "Soft-delete one or more memories: moves them to the trash. Excluded from `amber_search_memories` / `amber_list_memories`, but retrievable via `amber_search_deleted_memories` / `amber_list_deleted_memories` / `amber_restore_memory`. " +
     "Use this for user-initiated removals. Idempotent: deleting an already-deleted memory is a no-op.\n\n" +
-    "Pass `memory_id` for a single memory, or `memory_ids` for a batch (max 100).",
+    "Pass `memory_id` for a single memory, or `memory_ids` for a batch (max 100). Must provide at least one. " +
+    "Returns `deleted_count` with the number of memories actually moved to trash (excludes already-deleted ones). " +
+    "Returns `code: not_found` if none of the given IDs matched active memories.",
   {
-    memory_id: z.string().min(1).optional().describe("The memory ID to move to trash (single)."),
-    memory_ids: z.array(z.string().min(1)).min(1).max(100).optional().describe("Array of memory IDs to move to trash (batch, max 100)."),
+    memory_id: z.string().min(1).optional().describe(
+      "A single memory ID (UUID) to move to trash. Use this for individual deletions. Mutually optional with memory_ids — provide at least one.",
+    ),
+    memory_ids: z.array(z.string().min(1)).min(1).max(100).optional().describe(
+      "Array of memory IDs (UUIDs) to move to trash in a single batch (max 100). Use this for bulk deletions. Mutually optional with memory_id — provide at least one.",
+    ),
   },
   noop,
 );
@@ -124,10 +138,16 @@ server.tool(
   "amber_restore_memory",
   "Restore one or more previously soft-deleted memories back from the trash. They become searchable again and return to `amber_list_memories`. " +
     "Idempotent: restoring an already-active memory is a no-op.\n\n" +
-    "Pass `memory_id` for a single memory, or `memory_ids` for a batch (max 100).",
+    "Pass `memory_id` for a single memory, or `memory_ids` for a batch (max 100). Must provide at least one. " +
+    "Returns `restored_count` with the number of memories actually restored (excludes already-active ones). " +
+    "Returns `code: not_found` if none of the given IDs matched deleted memories.",
   {
-    memory_id: z.string().min(1).optional().describe("The memory ID to restore from trash (single)."),
-    memory_ids: z.array(z.string().min(1)).min(1).max(100).optional().describe("Array of memory IDs to restore (batch, max 100)."),
+    memory_id: z.string().min(1).optional().describe(
+      "A single memory ID (UUID) to restore from trash. Use this for individual restores. Mutually optional with memory_ids — provide at least one.",
+    ),
+    memory_ids: z.array(z.string().min(1)).min(1).max(100).optional().describe(
+      "Array of memory IDs (UUIDs) to restore from trash in a single batch (max 100). Use this for bulk restores. Mutually optional with memory_id — provide at least one.",
+    ),
   },
   noop,
 );
@@ -155,22 +175,34 @@ server.tool(
   "amber_list_memories",
   "Browse all active memories in reverse chronological order (newest first). Use cursor-based pagination via `after_id`. " +
     "`has_more` tells you whether another page exists. " +
-    "Prefer `amber_search_memories` when looking for specific content; use this when the user wants a browsing overview.",
+    "Prefer `amber_search_memories` when looking for specific content; use this when the user wants a browsing overview or asks \"show me my recent memories\".\n\n" +
+    "Each result includes full content, metadata, topics, and creation timestamp. " +
+    "Read-only — does not modify any memories.",
   {
-    limit: z.number().int().min(1).max(100).optional().describe("Page size (default 20, max 100)."),
-    after_id: z.string().optional().describe("Cursor from the `next_cursor` field of a previous page; omit to start from the newest."),
+    limit: z.number().int().min(1).max(100).optional().describe(
+      "Number of memories per page (default 20, max 100). Use smaller values (5-10) for quick overviews, larger values (50-100) for bulk browsing.",
+    ),
+    after_id: z.string().optional().describe(
+      "Pagination cursor. Pass the `next_cursor` value from a previous response to get the next page. Omit to start from the newest memory.",
+    ),
   },
   noop,
 );
 
 server.tool(
   "amber_list_deleted_memories",
-  "Browse the trash in reverse chronological order of deletion. Supports cursor pagination via `after_id`. " +
+  "Browse the trash in reverse chronological order of deletion (most recently deleted first). Supports cursor pagination via `after_id`. " +
     "`has_more` tells you whether another page exists. " +
-    "Use `amber_restore_memory` to bring an item back, or `amber_search_deleted_memories` for meaning-based search.",
+    "Use `amber_restore_memory` to bring an item back, or `amber_search_deleted_memories` for meaning-based search within the trash.\n\n" +
+    "Each result includes full content, metadata, topics, creation timestamp, and deletion timestamp. " +
+    "Read-only — does not modify or permanently delete any memories.",
   {
-    limit: z.number().int().min(1).max(100).optional().describe("Page size (default 20, max 100)."),
-    after_id: z.string().optional().describe("Cursor from the `next_cursor` field of a previous page."),
+    limit: z.number().int().min(1).max(100).optional().describe(
+      "Number of deleted memories per page (default 20, max 100). Use smaller values (5-10) for quick checks, larger values (50-100) for bulk review.",
+    ),
+    after_id: z.string().optional().describe(
+      "Pagination cursor. Pass the `next_cursor` value from a previous response to get the next page. Omit to start from the most recently deleted memory.",
+    ),
   },
   noop,
 );
@@ -188,8 +220,11 @@ server.tool(
 
 server.tool(
   "amber_manage_subscription",
-  "Return a PayPal URL the user can open to manage their subscription (update payment method, view billing history, etc.) and the next billing date. " +
-    "Returns `code: no_subscription` if the account has no subscription on record.",
+  "Return a PayPal URL the user can open to manage their subscription (update payment method, view billing history, change payment source) and the next billing date. " +
+    "Use this when the user asks about billing, wants to change their payment method, or wants to view their subscription details.\n\n" +
+    "The URL opens PayPal's subscription management page — Amber does not handle payment details directly. " +
+    "Returns `code: no_subscription` if the account has no subscription on record (use `amber_reactivate_subscription` to start one). " +
+    "Read-only — does not modify the subscription.",
   {},
   noop,
 );
@@ -209,14 +244,15 @@ server.tool(
 
 server.tool(
   "amber_reactivate_subscription",
-  "Create a new PayPal subscription. Returns an approval URL that you MUST share with the user so they can open it in their browser. " +
-    "Use this when the user has no subscription, their trial expired, or they previously cancelled. " +
-    "If resubscribing, any remaining free days from the previous billing cycle are preserved. If the billing date has passed, billing starts immediately at $2.99/month. " +
-    "First-time subscribers get a 60-day free trial. " +
+  "Start or restart a PayPal subscription for the user. Returns an approval URL that you MUST present to the user to open in their browser — the subscription is not active until they approve it on PayPal.\n\n" +
+    "When to use: the user has no subscription, their trial expired, they previously cancelled, or they ask to resubscribe.\n\n" +
+    "Pricing: first-time subscribers get a 60-day free trial, then $2.99/month. Resubscribers keep any remaining free days from their previous billing cycle; if the billing date has passed, billing starts immediately at $2.99/month.\n\n" +
     "IMPORTANT: When presenting the approval URL, warn the user that they MUST log in with the SAME PayPal account they originally signed up with. " +
-    "If they use a different PayPal account, the subscription will be automatically rejected and they will need to try again. " +
-    "Returns `code: already_active` if the subscription is already active, " +
-    "`code: not_configured` if PayPal credentials are missing.",
+    "If they use a different PayPal account, the subscription will be automatically rejected and they will need to try again.\n\n" +
+    "Side effects: creates a new PayPal subscription (pending approval). No charge occurs until the user approves. " +
+    "Returns `code: already_active` if the subscription is already active (also syncs status from PayPal). " +
+    "Returns `code: not_configured` if PayPal credentials are missing. " +
+    "Returns `code: deletion_scheduled` if the account is scheduled for deletion — user must cancel deletion first.",
   {},
   noop,
 );
@@ -225,7 +261,12 @@ server.tool(
   "amber_export_memories",
   "Export every active memory as a JSON file. Returns a download URL valid for 7 days. " +
     "The file contains all memories with cleaned metadata (internal prefixes stripped, implementation fields removed). " +
-    "The user should open the download URL in their browser to save the file.",
+    "The user should open the download URL in their browser to save the file.\n\n" +
+    "Use this when the user wants a backup, wants to migrate data, or asks \"can I download my data?\". " +
+    "Each call generates a fresh export — previous export URLs remain valid for their full 7-day window. " +
+    "The export includes both active and deleted memories, with topics and metadata. " +
+    "Large accounts (10,000+ memories) may take a few seconds to generate. " +
+    "Does not modify any data — read-only operation.",
   {},
   noop,
 );
@@ -264,10 +305,19 @@ server.tool(
     "Send feedback PROACTIVELY when you encounter errors, unexpected behaviour, or the user expresses frustration — briefly mention it to the user after sending, but do not ask for permission first. " +
     "Never include passwords, API keys, or other sensitive personal information in any field. Rate-limited (bucket: 12 capacity, refills 1 per 5 minutes).",
   {
-    category: z.enum(["bug", "feature_request", "usability", "general"]).describe("Type of feedback."),
-    summary: z.string().min(1).describe("One-line summary of the feedback."),
-    details: z.string().min(1).describe("Full context: what the user tried, what happened, error messages, reproduction steps, suggestions."),
-    tool_context: z.string().optional().describe("The name of the tool being used when the issue occurred, if relevant."),
+    category: z.enum(["bug", "feature_request", "usability", "general"]).describe(
+      "Type of feedback: 'bug' for something broken, 'feature_request' for new functionality, 'usability' for UX friction, 'general' for anything else.",
+    ),
+    summary: z.string().min(1).describe(
+      "One-line summary (under ~100 characters). Example: 'Search returns no results for exact keyword matches'.",
+    ),
+    details: z.string().min(1).describe(
+      "Full context including: what the user tried, what happened vs what was expected, any error messages or codes, " +
+        "steps to reproduce, and suggestions if the user offered any. Be specific and include tool names, query text, or memory IDs when relevant.",
+    ),
+    tool_context: z.string().optional().describe(
+      "The amber_ tool name that was being used when the issue occurred (e.g. 'amber_search_memories'). Helps the developer pinpoint the problem.",
+    ),
   },
   noop,
 );
@@ -276,7 +326,10 @@ server.tool(
   "amber_mark_notification_read",
   "Mark a developer notification (delivered via the automatic `developer_notifications` piggyback on every tool response) as read AFTER the user has seen and acknowledged it. This permanently removes it so it will not appear again.",
   {
-    notification_id: z.number().int().describe("The ID from the `developer_notifications` payload."),
+    notification_id: z.number().int().describe(
+      "The numeric ID from the `developer_notifications` section that appears in every tool response when notifications are pending. " +
+        "Each notification has a unique ID. Only mark as read after the user has seen and acknowledged the notification content.",
+    ),
   },
   noop,
 );
