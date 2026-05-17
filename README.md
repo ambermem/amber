@@ -2,7 +2,7 @@
 
 **Long-term memory for AI assistants.**
 
-Amber is an MCP server that gives any AI assistant persistent, searchable memory across conversations. Your AI remembers preferences, decisions, project context, and personal details — without you doing anything special.
+Amber is an MCP server that gives any AI assistant persistent, searchable memory across conversations. Your AI remembers preferences, decisions, project context, and personal details - without you doing anything special.
 
 > Just talk normally. Amber stores what matters and finds it when relevant.
 
@@ -65,7 +65,7 @@ Add to `.vscode/mcp.json`:
 
 ### Any MCP client
 
-URL: `https://mcp.ambermem.com` — Transport: Streamable HTTP — Auth: OAuth 2.1 (auto-discovered)
+URL: `https://mcp.ambermem.com` | Transport: Streamable HTTP | Auth: OAuth 2.1 (auto-discovered)
 
 ## How It Works
 
@@ -99,10 +99,10 @@ No configuration. No tagging. No manual organization.
 
 ## Pricing
 
-- **60-day free trial** — no charge, cancel anytime
-- **$2.99/month** after trial — via PayPal
-- **Cancel instantly** — ask your AI to cancel, or cancel through PayPal directly
-- **No lock-in** — export all your data as JSON anytime
+- **60-day free trial** - no charge, cancel anytime
+- **$2.99/month** after trial, via PayPal
+- **Cancel instantly** - ask your AI to cancel, or cancel through PayPal directly
+- **No lock-in** - export all your data as JSON anytime
 
 ## Privacy
 
@@ -137,10 +137,10 @@ No. Storage is async (background). Search adds <1 second.
 Export all your data as JSON anytime. Your data is always yours.
 
 **Do I need a PayPal account?**
-Currently yes — PayPal handles both identity and billing. More login options coming soon.
+Currently yes. PayPal handles both identity and billing. More login options coming soon.
 
 **Is my data safe?**
 Each user gets a completely isolated database. No data is shared between users. Amber has no access to your PayPal payment details.
 
 **Can I self-host?**
-Not currently. Amber is a managed service — we handle the infrastructure, scaling, and LLM costs so you don't have to.
+Not currently. Amber is a managed service. We handle the infrastructure, scaling, and LLM costs so you don't have to.
