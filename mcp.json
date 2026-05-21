@@ -1,7 +1,11 @@
 {
+  "name": "Amber",
+  "description": "Long-term memory for AI assistants",
+  "logo": "https://ambermem.com/favicon.png",
   "mcpServers": {
     "amber": {
-      "url": "https://mcp.ambermem.com"
+      "url": "https://mcp.ambermem.com",
+      "description": "Persistent memory with hybrid search, query expansion, and automatic topic categorization"
     }
   }
 }
