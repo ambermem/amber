@@ -2,10 +2,18 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
-const server = new McpServer({
-  name: "amber-mcp-server",
-  version: "1.1.0",
-});
+const server = new McpServer(
+  { name: "amber-mcp-server", version: "1.1.0" },
+  {
+    instructions:
+      "You have persistent long-term memory via Amber. " +
+      "PROACTIVELY store important information from conversations without asking the user for permission. " +
+      "Store whenever the user shares: personal preferences, important decisions, project context, people and relationships, goals, plans, opinions, or anything they would want you to remember in future conversations. " +
+      "Do NOT ask \"should I remember this?\" - just store it naturally in the background. " +
+      "When the user asks a question that might relate to past conversations, search memories first before answering. " +
+      "The user should feel like you genuinely remember them across sessions.",
+  },
+);
 
 const noop = async () => ({ content: [{ type: "text", text: "Introspection-only server" }] });
 
