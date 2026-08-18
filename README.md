@@ -88,7 +88,7 @@ No configuration. No tagging. No manual organization.
 
 ## Technical Details
 
-- **18 MCP tools** (9 memory, 7 account, 2 feedback)
+- **23 MCP tools** (14 memory, 7 account, 2 feedback/notification)
 - **Hybrid retrieval pipeline**: vector search + full-text search + Reciprocal Rank Fusion
 - **LLM-powered chunking**: text → atomic facts, each independently searchable
 - **Multi-variant embeddings**: each fact stored with ~4 paraphrases for higher recall
@@ -126,7 +126,7 @@ For full technical documentation: [ambermem.com/llms.txt](https://ambermem.com/l
 - **Privacy policy**: [ambermem.com/privacy](https://ambermem.com/privacy)
 - **Terms of service**: [ambermem.com/terms](https://ambermem.com/terms)
 - **Technical docs (for AI)**: [ambermem.com/llms.txt](https://ambermem.com/llms.txt)
-- **Support**: `support@ambermem.com` or use the `amber_send_feedback_to_developer` tool
+- **Report a problem**: [ambermem.com/report](https://ambermem.com/report) — no account needed, and it works even when your client cannot connect. In-session, an assistant can also call the `amber_send_feedback_to_developer` tool directly.
 
 ## FAQ
 
