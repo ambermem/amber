@@ -81,21 +81,22 @@ No configuration. No tagging. No manual organization.
 |---------|---------------------|-------|
 | Storage | One embedding per memory | **Multiple semantic variants** per fact |
 | Search | Single vector lookup | **Hybrid: vector + keyword + RRF fusion** |
-| Queries | Exact match only | **Auto-expanded** (synonyms, paraphrases) |
-| Input | Stored as-is | **LLM-chunked** into atomic facts |
-| Topics | Manual tags or none | **Auto-categorized** by LLM |
+| Queries | Exact match only | **Many phrasings per fact**, matched semantically |
+| Input | Stored as-is | **Chunked into atomic facts**, each independently searchable |
+| Topics | Manual tags or none | **Auto-grouped**, matched semantically at search time |
+| Privacy | Varies by server | **No generative model reads your memories** |
 | Time | No temporal awareness | **Natural language time parsing** ("last week", "3 days ago") |
 
 ## Technical Details
 
 - **25 MCP tools** (14 memory, 9 account, 2 feedback/notification)
 - **Hybrid retrieval pipeline**: vector search + full-text search + Reciprocal Rank Fusion
-- **LLM-powered chunking**: text → atomic facts, each independently searchable
-- **Multi-variant embeddings**: each fact stored with ~4 paraphrases for higher recall
-- **Query expansion**: searches are auto-rephrased to find semantically related memories
-- **Automatic topic categorization**: memories grouped by LLM-generated topics
-- **Temporal parsing**: "what did I say last week?" just works
-- **Async processing**: storage completes in 10-30s background, never blocks your conversation
+- **Multi-variant embeddings**: every fact is stored with several paraphrases — at least 5, and a store is rejected below that — which is the main thing that makes it findable later
+- **No generative model reads your memories**: your assistant does the chunking, the topics and the phrasings. Memory text is sent only to an *embedding* endpoint (a vector model, not a chat model), so no chat model is ever shown what you store
+- **Atomic facts**: a conversation becomes individually searchable facts rather than one blob, each with its own subjects, topics and dates
+- **Temporal search**: "what did I say last week?" resolves to a real date range rather than a keyword match
+- **Automatic topic grouping**: memories are grouped by topic, and a search for "work" also finds "career" and "job"
+- **Async processing**: storage completes in the background, never blocking your conversation
 
 ## Pricing
 
