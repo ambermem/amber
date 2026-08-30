@@ -88,7 +88,7 @@ No configuration. No tagging. No manual organization.
 
 ## Technical Details
 
-- **23 MCP tools** (14 memory, 7 account, 2 feedback/notification)
+- **25 MCP tools** (14 memory, 9 account, 2 feedback/notification)
 - **Hybrid retrieval pipeline**: vector search + full-text search + Reciprocal Rank Fusion
 - **LLM-powered chunking**: text → atomic facts, each independently searchable
 - **Multi-variant embeddings**: each fact stored with ~4 paraphrases for higher recall
