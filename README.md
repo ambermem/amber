@@ -100,7 +100,7 @@ No configuration. No tagging. No manual organization.
 
 ## Pricing
 
-- **60-day free trial** - no charge, cancel anytime
+- **90-day free trial** - no charge, cancel anytime
 - **$2.99/month** after trial, via PayPal
 - **Cancel instantly** - ask your AI to cancel, or cancel through PayPal directly
 - **No lock-in** - export all your data as JSON anytime
@@ -116,7 +116,7 @@ No configuration. No tagging. No manual organization.
 
 ## Architecture
 
-Amber runs on Cloudflare Workers (zero cold starts, global edge deployment) with Turso databases (one per user, full isolation). LLM processing uses Gemini Flash for chunking/expansion and OpenAI for embeddings.
+Amber runs on Cloudflare Workers (zero cold starts, global edge deployment) with Turso databases (one per user, full isolation). Your assistant does the chunking, the topics and the phrasings, so no generative model is ever shown what you store; memory text is sent only to OpenAI's embedding endpoint.
 
 For full technical documentation: [ambermem.com/llms.txt](https://ambermem.com/llms.txt)
 
