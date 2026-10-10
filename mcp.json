@@ -5,7 +5,7 @@
   "mcpServers": {
     "amber": {
       "url": "https://mcp.ambermem.com",
-      "description": "Persistent memory with hybrid search, query expansion, and automatic topic categorization"
+      "description": "Permanent, portable long-term memory: semantic and keyword search, recoverable trash, full export"
     }
   }
 }
