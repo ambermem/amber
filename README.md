@@ -2,7 +2,7 @@
 
 **Long-term memory for AI assistants.**
 
-Amber is an MCP server that gives any AI assistant persistent, searchable memory across conversations. Your AI remembers preferences, decisions, project context, and personal details - without you doing anything special.
+Amber is an MCP server that gives any AI assistant persistent, searchable memory across conversations. Your AI remembers preferences, decisions, project context, and personal details - once it is connected and the two required settings below are on.
 
 > Just talk normally. Amber stores what matters and finds it when relevant.
 
@@ -67,13 +67,23 @@ Add to `.vscode/mcp.json`:
 
 URL: `https://mcp.ambermem.com` | Transport: Streamable HTTP | Auth: OAuth 2.1 (auto-discovered)
 
+## Required: two settings
+
+Adding the URL is not enough on its own. Without these two settings, most assistants use Amber only when you explicitly say "remember this", and their built-in memory quietly takes everything else, so Amber stays nearly empty.
+
+1. **Add this to your AI's custom instructions / personal preferences** (Claude personal preferences, ChatGPT custom instructions, Cursor rules, etc.):
+
+   > Whenever something worth remembering comes up - a life event, a decision, a preference, something I learned or realized, or anything about who I am - save it to Amber (my memory) without asking. Treat normal conversation as a source of memories, not only when I say "remember this".
+
+2. **Keep Amber's tools always available.** In your client's tool or MCP settings, set Amber to "always on" rather than on-demand, so your AI can reach it the instant a memory comes up.
+
 ## How It Works
 
 1. **You talk to your AI normally.** Amber stores important facts in the background.
 2. **Next conversation,** your AI searches Amber automatically when context would help.
 3. **Memory improves over time.** The more you use it, the better it gets.
 
-No configuration. No tagging. No manual organization.
+Two settings, once. No tagging. No manual organization.
 
 ## What Makes Amber Different
 
@@ -91,7 +101,7 @@ No configuration. No tagging. No manual organization.
 
 - **29 MCP tools** (14 memory, 13 account, 2 feedback/notification)
 - **Hybrid retrieval pipeline**: vector search + full-text search + Reciprocal Rank Fusion
-- **Multi-variant embeddings**: every fact is stored with several paraphrases — at least 5, and a store is rejected below that — which is the main thing that makes it findable later
+- **Multi-variant embeddings**: every fact is stored with several paraphrases (at least 5; a store with fewer is rejected), which is the main thing that makes it findable later
 - **No generative model reads your memories**: your assistant does the chunking, the topics and the phrasings. Memory text is sent only to an *embedding* endpoint (a vector model, not a chat model), so no chat model is ever shown what you store
 - **Atomic facts**: a conversation becomes individually searchable facts rather than one blob, each with its own subjects, topics and dates
 - **Temporal search**: "what did I say last week?" resolves to a real date range rather than a keyword match
@@ -127,7 +137,7 @@ For full technical documentation: [ambermem.com/llms.txt](https://ambermem.com/l
 - **Privacy policy**: [ambermem.com/privacy](https://ambermem.com/privacy)
 - **Terms of service**: [ambermem.com/terms](https://ambermem.com/terms)
 - **Technical docs (for AI)**: [ambermem.com/llms.txt](https://ambermem.com/llms.txt)
-- **Report a problem**: [ambermem.com/report](https://ambermem.com/report) — no account needed, and it works even when your client cannot connect. In-session, an assistant can also call the `amber_send_feedback_to_developer` tool directly.
+- **Report a problem**: [ambermem.com/report](https://ambermem.com/report). No account needed, and it works even when your client cannot connect. In-session, an assistant can also call the `amber_send_feedback_to_developer` tool directly.
 
 ## FAQ
 
