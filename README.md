@@ -99,7 +99,7 @@ Two settings, once. No tagging. No manual organization.
 
 ## Technical Details
 
-- **29 MCP tools** (14 memory, 13 account, 2 feedback/notification)
+- **30 MCP tools** (14 memory, 14 account, 2 feedback/notification)
 - **Hybrid retrieval pipeline**: vector search + full-text search + Reciprocal Rank Fusion
 - **Multi-variant embeddings**: every fact is stored with several paraphrases (at least 5; a store with fewer is rejected), which is the main thing that makes it findable later
 - **No generative model reads your memories**: your assistant does the chunking, the topics and the phrasings. Memory text is sent only to an *embedding* endpoint (a vector model, not a chat model), so no chat model is ever shown what you store
